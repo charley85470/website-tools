@@ -12,14 +12,20 @@
   const memoPanel = document.getElementById('memoPanel');
   const borderPanel = document.getElementById('borderPanel');
 
-  const scopeRadios = [...document.querySelectorAll('input[name="scopeType"]')];
+  const scopeTypeTabButtons = [...document.querySelectorAll('#scopeTypeTabs button')];
   const parentScopeInput = document.getElementById('parentScopeInput');
+  const parentScopeGroup = document.getElementById('parentScopeGroup');
   const scopePreview = document.getElementById('scopePreview');
-  const statusEl = document.getElementById('status');
+  const statusEl = document.getElementById('popupStatus');
   const borderColorInput = document.getElementById('borderColor');
   const borderColorPresetButtons = [...document.querySelectorAll('#borderColorPresets .color-swatch')];
+    const addBorderBtn = document.getElementById('addBorder');
 
-  function showStatus(message, isError = false) {
+  function showStatus(message, isError = false, showOnMemo = true) {
+    if (!showOnMemo && state.mode !== 'border') {
+      statusEl.textContent = '';
+      return;
+    }
     statusEl.textContent = message;
     statusEl.style.color = isError ? '#b91c1c' : '#047857';
   }
@@ -69,8 +75,8 @@
   }
 
   function setScopeTypeAndValue(scopeType, scopeValue) {
-    const target = scopeRadios.find((radio) => radio.value === scopeType) || scopeRadios[0];
-    target.checked = true;
+    const target = scopeTypeTabButtons.find((button) => button.dataset.scope === scopeType) || scopeTypeTabButtons[0];
+    scopeTypeTabButtons.forEach((button) => button.classList.toggle('active', button === target));
     if (scopeType === 'parent' && scopeValue) {
       parentScopeInput.value = scopeValue;
     }
@@ -88,6 +94,7 @@
 
     if (!candidates.length) {
       state.editingBorderId = null;
+      updateBorderButtonLabel();
       return false;
     }
 
@@ -99,6 +106,7 @@
 
     const target = candidates[0];
     state.editingBorderId = target.id;
+    updateBorderButtonLabel();
     setScopeTypeAndValue(target.scopeType, target.scopeValue);
     borderColorInput.value = target.color || '#ef4444';
     syncBorderPresetActiveState();
@@ -121,8 +129,8 @@
   }
 
   function currentScopeType() {
-    const selected = scopeRadios.find((r) => r.checked);
-    return selected ? selected.value : 'domain';
+    const selected = scopeTypeTabButtons.find((button) => button.classList.contains('active'));
+    return selected ? selected.dataset.scope : 'domain';
   }
 
   function getScopeValue(type) {
@@ -137,7 +145,15 @@
     const value = getScopeValue(type);
     scopePreview.textContent = `目前作用域：${value}`;
     parentScopeInput.disabled = type !== 'parent';
+    if (parentScopeGroup) {
+      parentScopeGroup.classList.toggle('hidden', type !== 'parent');
+    }
   }
+
+    function updateBorderButtonLabel() {
+      if (!addBorderBtn) return;
+      addBorderBtn.textContent = state.editingBorderId ? '更新 Border' : '新增 Border';
+    }
 
   function setMode(mode) {
     state.mode = mode;
@@ -151,10 +167,12 @@
       autofillBorderFormFromCurrentPage()
         .then((loaded) => {
           if (loaded) {
-            showStatus('已載入現有 Border 設定');
+            showStatus('已載入現有 Border 設定', false, false);
           }
         })
         .catch((err) => showStatus(err.message, true));
+    } else {
+      showStatus('');
     }
   }
 
@@ -261,6 +279,7 @@
     });
 
     state.editingBorderId = targetId;
+    updateBorderButtonLabel();
     await saveEntries(nextEntries);
 
     await notifyRefresh();
@@ -282,7 +301,14 @@
     refreshScopePreview();
   }
 
-  scopeRadios.forEach((radio) => radio.addEventListener('change', refreshScopePreview));
+  scopeTypeTabButtons.forEach((button) => {
+    button.addEventListener('click', () => {
+      scopeTypeTabButtons.forEach((item) => item.classList.toggle('active', item === button));
+        state.editingBorderId = null;
+        updateBorderButtonLabel();
+      refreshScopePreview();
+    });
+  });
   parentScopeInput.addEventListener('input', refreshScopePreview);
   borderColorInput.addEventListener('input', syncBorderPresetActiveState);
   borderColorPresetButtons.forEach((button) => {
@@ -304,5 +330,6 @@
   });
 
   syncBorderPresetActiveState();
+  updateBorderButtonLabel();
   initialize().catch((err) => showStatus(err.message, true));
 })();

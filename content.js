@@ -148,6 +148,16 @@
     return Math.max(min, Math.min(max, n));
   }
 
+  function getContrastTextColor(hexColor) {
+    const normalized = (hexColor || '').replace('#', '');
+    const validHex = /^[0-9a-fA-F]{6}$/.test(normalized) ? normalized : 'ef4444';
+    const red = parseInt(validHex.slice(0, 2), 16);
+    const green = parseInt(validHex.slice(2, 4), 16);
+    const blue = parseInt(validHex.slice(4, 6), 16);
+    const yiq = (red * 299 + green * 587 + blue * 114) / 1000;
+    return yiq >= 145 ? '#111827' : '#ffffff';
+  }
+
   function renderMemo(entry, index) {
     if (runtimeHiddenMemoIds.has(entry.id)) return;
 
@@ -220,10 +230,11 @@
   }
 
   function renderBorder(entry) {
+    const borderColor = entry.color || '#ef4444';
     const border = document.createElement('div');
     border.setAttribute(ROOT_ATTR, '1');
     border.className = 'wmemo-border';
-    border.style.border = `4px solid ${entry.color || '#ef4444'}`;
+    border.style.border = `4px solid ${borderColor}`;
 
     const sides = [
       ['top', 'wmemo-border-top'],
@@ -238,6 +249,8 @@
       const label = document.createElement('div');
       label.setAttribute(ROOT_ATTR, '1');
       label.className = `wmemo-border-label ${className}`;
+      label.style.background = borderColor;
+      label.style.color = getContrastTextColor(borderColor);
       label.textContent = text;
       document.documentElement.appendChild(label);
     }

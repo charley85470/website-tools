@@ -51,6 +51,7 @@ select, input[type="text"], textarea, input[type="color"] {
   padding: 8px 14px;
   cursor: pointer;
   background: #fff;
+  color: #111827;
 }
 .tabs button.active {
   background: #111827;
@@ -103,6 +104,20 @@ button.danger { background: #dc2626; }
 .edit-row {
   display: grid;
   gap: 4px;
+}
+.scope-tabs {
+  display: flex;
+  gap: 6px;
+}
+.scope-tabs button {
+  background: #fff;
+  color: #111827;
+  border: 1px solid #d1d5db;
+}
+.scope-tabs button.active {
+  background: #111827;
+  border-color: #111827;
+  color: #fff;
 }
 .color-presets {
   display: flex;

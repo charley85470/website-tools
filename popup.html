@@ -15,12 +15,18 @@
       <button id="modeBorder" type="button">Border</button>
     </div>
 
+    <div id="popupStatus" class="status"></div>
     <section class="card">
       <div class="section-title">作用域</div>
-      <label><input type="radio" name="scopeType" value="domain" checked /> domain 下所有頁面</label>
-      <label><input type="radio" name="scopeType" value="parent" /> 同父目錄所有頁面</label>
-      <input id="parentScopeInput" type="text" />
-      <label><input type="radio" name="scopeType" value="page" /> 僅該頁面</label>
+      <div id="scopeTypeTabs" class="scope-tabs" role="tablist" aria-label="作用域切換">
+        <button type="button" class="active" data-scope="domain">domain</button>
+        <button type="button" data-scope="parent">父目錄</button>
+        <button type="button" data-scope="page">單頁</button>
+      </div>
+      <div id="parentScopeGroup" class="parent-scope-group hidden">
+        <label for="parentScopeInput">父目錄作用域（可編輯）</label>
+        <input id="parentScopeInput" type="text" />
+      </div>
       <div id="scopePreview" class="hint"></div>
     </section>
 
@@ -58,7 +64,6 @@
     </section>
 
     <button id="openOptions" class="secondary" type="button">開啟完整設定視窗</button>
-    <div id="status" class="status"></div>
   </main>
 
   <script src="popup.js"></script>

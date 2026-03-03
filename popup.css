@@ -18,11 +18,15 @@ h1 {
   gap: 8px;
   margin-bottom: 10px;
 }
+.parent-scope-group.hidden {
+  display: none;
+}
 .mode-switch button {
   flex: 1;
   border: 1px solid #d1d5db;
   border-radius: 8px;
   background: #fff;
+  color: #111827;
   padding: 8px;
   cursor: pointer;
 }
@@ -41,6 +45,25 @@ h1 {
 .section-title {
   font-weight: 700;
   margin-bottom: 8px;
+}
+.scope-tabs {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.scope-tabs button {
+  width: auto;
+  flex: 1;
+  background: #fff;
+  color: #111827;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  padding: 6px 8px;
+}
+.scope-tabs button.active {
+  background: #111827;
+  border-color: #111827;
+  color: #fff;
 }
 label {
   display: block;

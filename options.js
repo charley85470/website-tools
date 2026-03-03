@@ -197,17 +197,33 @@
     scopeTypeRow.className = 'edit-row';
     const scopeTypeLabel = document.createElement('label');
     scopeTypeLabel.textContent = '作用域類型';
-    const scopeTypeSelect = document.createElement('select');
-    scopeTypeSelect.name = 'scopeType';
-    ['domain', 'parent', 'page'].forEach((value) => {
-      const option = document.createElement('option');
-      option.value = value;
-      option.textContent = value;
-      option.selected = entry.scopeType === value;
-      scopeTypeSelect.appendChild(option);
+    const scopeTypeInput = document.createElement('input');
+    scopeTypeInput.type = 'hidden';
+    scopeTypeInput.name = 'scopeType';
+    scopeTypeInput.value = entry.scopeType || 'domain';
+    const scopeTypeTabs = document.createElement('div');
+    scopeTypeTabs.className = 'scope-tabs';
+    [
+      { value: 'domain', label: 'domain' },
+      { value: 'parent', label: '父目錄' },
+      { value: 'page', label: '單頁' }
+    ].forEach(({ value, label }) => {
+      const tab = document.createElement('button');
+      tab.type = 'button';
+      tab.textContent = label;
+      tab.dataset.scope = value;
+      tab.classList.toggle('active', scopeTypeInput.value === value);
+      tab.addEventListener('click', () => {
+        scopeTypeInput.value = value;
+        [...scopeTypeTabs.querySelectorAll('button')].forEach((button) => {
+          button.classList.toggle('active', button === tab);
+        });
+      });
+      scopeTypeTabs.appendChild(tab);
     });
     scopeTypeRow.appendChild(scopeTypeLabel);
-    scopeTypeRow.appendChild(scopeTypeSelect);
+    scopeTypeRow.appendChild(scopeTypeTabs);
+    scopeTypeRow.appendChild(scopeTypeInput);
 
     const scopeValueRow = document.createElement('div');
     scopeValueRow.className = 'edit-row';
