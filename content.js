@@ -2,6 +2,8 @@
   const ROOT_ATTR = 'data-wmemo-root';
   const STYLE_ID = 'wmemo-style';
   const runtimeHiddenMemoIds = new Set();
+  const runtimeHiddenBorderUntil = new Map();
+  const BORDER_HIDE_DURATION_MS = 5 * 60 * 1000;
   let lastUrl = location.href;
 
   function ensureStyles() {
@@ -70,6 +72,24 @@
         overflow: hidden;
         text-overflow: ellipsis;
       }
+      .wmemo-border-close {
+        position: fixed;
+        top: 8px;
+        right: 8px;
+        z-index: 2147483647;
+        pointer-events: auto;
+        border: none;
+        border-radius: 999px;
+        width: 24px;
+        height: 24px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0;
+        font-size: 16px;
+        line-height: 1;
+        cursor: pointer;
+      }
       .wmemo-border-top { top: 8px; left: 50%; transform: translateX(-50%); }
       .wmemo-border-right { top: 50%; right: 8px; transform: translateY(-50%); }
       .wmemo-border-bottom { bottom: 8px; left: 50%; transform: translateX(-50%); }
@@ -129,6 +149,16 @@
     const entries = await getEntries();
     const next = entries.map((item) => (item.id === id ? { ...item, ...patch } : item));
     await chrome.storage.local.set({ entries: next });
+  }
+
+  function isBorderTemporarilyHidden(id) {
+    const hiddenUntil = runtimeHiddenBorderUntil.get(id);
+    if (!hiddenUntil) return false;
+    if (Date.now() >= hiddenUntil) {
+      runtimeHiddenBorderUntil.delete(id);
+      return false;
+    }
+    return true;
   }
 
   function clearRendered() {
@@ -231,10 +261,13 @@
 
   function renderBorder(entry) {
     const borderColor = entry.color || '#ef4444';
+    const renderedNodes = [];
+
     const border = document.createElement('div');
     border.setAttribute(ROOT_ATTR, '1');
     border.className = 'wmemo-border';
     border.style.border = `4px solid ${borderColor}`;
+    renderedNodes.push(border);
 
     const sides = [
       ['top', 'wmemo-border-top'],
@@ -253,7 +286,32 @@
       label.style.color = getContrastTextColor(borderColor);
       label.textContent = text;
       document.documentElement.appendChild(label);
+      renderedNodes.push(label);
     }
+
+    const closeButton = document.createElement('button');
+    closeButton.setAttribute(ROOT_ATTR, '1');
+    closeButton.className = 'wmemo-border-close';
+    closeButton.type = 'button';
+    closeButton.textContent = '×';
+    closeButton.title = '暫時關閉 Border 提示（5 分鐘）';
+    closeButton.style.background = borderColor;
+    closeButton.style.color = getContrastTextColor(borderColor);
+    closeButton.addEventListener('click', () => {
+      const hiddenUntil = Date.now() + BORDER_HIDE_DURATION_MS;
+      runtimeHiddenBorderUntil.set(entry.id, hiddenUntil);
+      renderedNodes.forEach((node) => node.remove());
+
+      setTimeout(() => {
+        const currentHiddenUntil = runtimeHiddenBorderUntil.get(entry.id);
+        if (currentHiddenUntil !== hiddenUntil) return;
+        runtimeHiddenBorderUntil.delete(entry.id);
+        renderAll();
+      }, BORDER_HIDE_DURATION_MS);
+    });
+
+    document.documentElement.appendChild(closeButton);
+    renderedNodes.push(closeButton);
 
     document.documentElement.appendChild(border);
   }
@@ -287,7 +345,7 @@
       }
     }
 
-    if (selectedBorder) {
+    if (selectedBorder && !isBorderTemporarilyHidden(selectedBorder.id)) {
       renderBorder(selectedBorder);
     }
   }
@@ -296,6 +354,7 @@
     if (location.href === lastUrl) return;
     lastUrl = location.href;
     runtimeHiddenMemoIds.clear();
+    runtimeHiddenBorderUntil.clear();
     renderAll();
   }
 
