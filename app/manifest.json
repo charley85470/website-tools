@@ -5,9 +5,19 @@
   "description": "為網站加上 memo 與 border 註記，支援 domain/父目錄/單頁作用域。",
   "permissions": ["storage", "tabs"],
   "host_permissions": ["<all_urls>"],
+  "icons": {
+    "16": "assets/icon/icon_128x128.png",
+    "48": "assets/icon/icon_128x128.png",
+    "128": "assets/icon/icon_128x128.png"
+  },
   "action": {
     "default_title": "Website Memo",
-    "default_popup": "popup.html"
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "assets/icon/icon_128x128.png",
+      "48": "assets/icon/icon_128x128.png",
+      "128": "assets/icon/icon_128x128.png"
+    }
   },
   "options_page": "options.html",
   "content_scripts": [
