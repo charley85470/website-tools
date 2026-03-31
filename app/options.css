@@ -79,8 +79,11 @@ select, input[type="text"], textarea, input[type="color"] {
   margin-bottom: 8px;
 }
 .meta {
-  font-size: 12px;
+  font-size: 14px;
   color: #4b5563;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 .actions {
   display: flex;
@@ -96,6 +99,7 @@ button {
 }
 button.danger { background: #dc2626; }
 .item-content {
+  font-size: 14px;
   white-space: pre-wrap;
 }
 .edit-form {
@@ -126,6 +130,30 @@ button.danger { background: #dc2626; }
 .color-presets {
   display: flex;
   gap: 6px;
+}
+.item-color-swatch {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  border: 1px solid #d1d5db;
+  flex-shrink: 0;
+}
+.item-content-color-line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+.item-clipboard .item-head { margin-bottom: 0; }
+.clipboard-text-meta {
+  font-size: 14px;
+  color: #1f2937;
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
 }
 .color-swatch {
   width: 24px;

@@ -1,6 +1,6 @@
 (() => {
   const state = {
-    mode: 'memo',
+    mode: 'clipboard',
     tabId: null,
     currentUrl: null,
     context: null,
@@ -9,8 +9,11 @@
 
   const modeMemoBtn = document.getElementById('modeMemo');
   const modeBorderBtn = document.getElementById('modeBorder');
+  const modeClipboardBtn = document.getElementById('modeClipboard');
   const memoPanel = document.getElementById('memoPanel');
   const borderPanel = document.getElementById('borderPanel');
+  const clipboardPanel = document.getElementById('clipboardPanel');
+  const scopeCard = document.getElementById('scopeCard');
   const availabilityNoticeEl = document.getElementById('availabilityNotice');
   const interactiveAreaEl = document.getElementById('interactiveArea');
 
@@ -172,12 +175,23 @@
   function setMode(mode) {
     state.mode = mode;
     const isMemo = mode === 'memo';
+    const isBorder = mode === 'border';
+    const isClipboard = mode === 'clipboard';
     memoPanel.classList.toggle('hidden', !isMemo);
-    borderPanel.classList.toggle('hidden', isMemo);
+    borderPanel.classList.toggle('hidden', !isBorder);
+    clipboardPanel.classList.toggle('hidden', !isClipboard);
+    if (scopeCard) scopeCard.classList.toggle('hidden', isClipboard);
     modeMemoBtn.classList.toggle('active', isMemo);
-    modeBorderBtn.classList.toggle('active', !isMemo);
+    modeBorderBtn.classList.toggle('active', isBorder);
+    modeClipboardBtn.classList.toggle('active', isClipboard);
 
-    if (!isMemo) {
+    const noContext = !state.context;
+    document.getElementById('memoSiteNotice')?.classList.toggle('hidden', !isMemo || !noContext);
+    document.getElementById('borderSiteNotice')?.classList.toggle('hidden', !isBorder || !noContext);
+    document.getElementById('memoFormContent')?.classList.toggle('hidden', isMemo && noContext);
+    document.getElementById('borderFormContent')?.classList.toggle('hidden', isBorder && noContext);
+
+    if (isBorder) {
       autofillBorderFormFromCurrentPage()
         .then((loaded) => {
           if (loaded) {
@@ -214,6 +228,10 @@
   }
 
   async function addMemo() {
+    if (!state.context) {
+      showStatus('請在一般網站頁面使用此功能', true);
+      return;
+    }
     const memoText = document.getElementById('memoText').value.trim();
     const memoColor = document.getElementById('memoColor').value;
 
@@ -242,6 +260,10 @@
   }
 
   async function addBorder() {
+    if (!state.context) {
+      showStatus('請在一般網站頁面使用此功能', true);
+      return;
+    }
     const scopeType = currentScopeType();
     const scopeValue = getScopeValue(scopeType);
     const borderColor = borderColorInput.value;
@@ -306,25 +328,14 @@
 
   async function initialize() {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    if (!tab || !tab.url || !/^https?:/.test(tab.url)) {
-      showAvailabilityNotice('請在一般網站頁面使用此擴充功能');
-      if (interactiveAreaEl) {
-        interactiveAreaEl.classList.add('hidden');
-      }
-      return;
+    if (tab && tab.url && /^https?:/.test(tab.url)) {
+      state.tabId = tab.id;
+      state.currentUrl = tab.url;
+      state.context = buildContext(tab.url);
+      parentScopeInput.value = state.context.parent;
+      refreshScopePreview();
     }
-
-    showAvailabilityNotice('');
-    if (interactiveAreaEl) {
-      interactiveAreaEl.classList.remove('hidden');
-    }
-
-    state.tabId = tab.id;
-    state.currentUrl = tab.url;
-    state.context = buildContext(tab.url);
-
-    parentScopeInput.value = state.context.parent;
-    refreshScopePreview();
+    setMode(state.mode);
   }
 
   scopeTypeTabButtons.forEach((button) => {
@@ -348,12 +359,140 @@
 
   modeMemoBtn.addEventListener('click', () => setMode('memo'));
   modeBorderBtn.addEventListener('click', () => setMode('border'));
+  modeClipboardBtn.addEventListener('click', () => setMode('clipboard'));
 
   document.getElementById('addMemo').addEventListener('click', () => addMemo().catch((err) => showStatus(err.message, true)));
   document.getElementById('addBorder').addEventListener('click', () => addBorder().catch((err) => showStatus(err.message, true)));
   document.getElementById('openOptions').addEventListener('click', () => {
     chrome.runtime.openOptionsPage();
   });
+
+  // ── Clipboard 功能 ────────────────────────────────────────────
+  const clipboardListEl = document.getElementById('clipboardList');
+  const clipboardEmptyMsg = document.getElementById('clipboardEmptyMsg');
+  const clipboardCountEl = document.getElementById('clipboardCount');
+  const clipboardNewText = document.getElementById('clipboardNewText');
+  const clipboardAddForm = document.getElementById('clipboardAddForm');
+  const clipboardClearBtn = document.getElementById('clipboardClearBtn');
+
+  function renderClipboardList(items) {
+    clipboardListEl.innerHTML = '';
+    clipboardCountEl.textContent = (items || []).length;
+    if (!items || items.length === 0) {
+      clipboardEmptyMsg.classList.remove('hidden');
+      return;
+    }
+    clipboardEmptyMsg.classList.add('hidden');
+
+    items.forEach((text, index) => {
+      const li = document.createElement('li');
+      li.className = 'clipboard-item';
+      li.title = text;
+
+      const span = document.createElement('span');
+      span.className = 'clipboard-item-text';
+      span.textContent = text;
+      span.title = text;
+
+      const actions = document.createElement('div');
+      actions.className = 'clipboard-item-actions';
+
+      const insertBtn = document.createElement('button');
+      insertBtn.className = 'clipboard-btn';
+      insertBtn.textContent = '插入';
+      insertBtn.title = '插入至目前聚焦的輸入框';
+      insertBtn.type = 'button';
+      insertBtn.onclick = () => {
+        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+          if (!tabs || !tabs[0] || !tabs[0].id) return;
+          chrome.scripting.executeScript({
+            target: { tabId: tabs[0].id },
+            func: (txt) => {
+              try {
+                const active = document.activeElement;
+                if (active && (active.tagName === 'TEXTAREA' || (active.tagName === 'INPUT' && active.type !== 'file'))) {
+                  const s = typeof active.selectionStart === 'number' ? active.selectionStart : active.value.length;
+                  const e = typeof active.selectionEnd === 'number' ? active.selectionEnd : s;
+                  active.value = active.value.slice(0, s) + txt + active.value.slice(e);
+                  active.selectionStart = active.selectionEnd = s + txt.length;
+                  active.focus();
+                  return true;
+                }
+                if (active && active.isContentEditable) {
+                  const sel = window.getSelection();
+                  if (!sel || sel.rangeCount === 0) return false;
+                  const range = sel.getRangeAt(0);
+                  range.deleteContents();
+                  const node = document.createTextNode(txt);
+                  range.insertNode(node);
+                  range.setStartAfter(node);
+                  range.setEndAfter(node);
+                  sel.removeAllRanges();
+                  sel.addRange(range);
+                  return true;
+                }
+                return false;
+              } catch (_) { return false; }
+            },
+            args: [text]
+          });
+        });
+      };
+
+      const delBtn = document.createElement('button');
+      delBtn.className = 'clipboard-btn clipboard-btn-danger';
+      delBtn.textContent = '刪除';
+      delBtn.title = '刪除此片段';
+      delBtn.type = 'button';
+      delBtn.onclick = () => {
+        const updated = items.filter((_, i) => i !== index);
+        chrome.storage.local.set({ clipboard: updated }, () => renderClipboardList(updated));
+      };
+
+      actions.appendChild(insertBtn);
+      actions.appendChild(delBtn);
+      li.appendChild(span);
+      li.appendChild(actions);
+      clipboardListEl.appendChild(li);
+    });
+  }
+
+  // 初始載入片段
+  chrome.storage.local.get({ clipboard: [] }, (data) => renderClipboardList(data.clipboard));
+
+  // 即時同步其他視窗的變更（例如右鍵選單新增）
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area === 'local' && changes.clipboard) {
+      renderClipboardList(changes.clipboard.newValue || []);
+    }
+  });
+
+  clipboardAddForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const value = clipboardNewText.value.trim();
+    if (!value) { clipboardNewText.focus(); return; }
+    chrome.storage.local.get({ clipboard: [] }, (data) => {
+      const updated = [value, ...(data.clipboard || [])];
+      chrome.storage.local.set({ clipboard: updated }, () => {
+        renderClipboardList(updated);
+        clipboardNewText.value = '';
+        clipboardNewText.focus();
+      });
+    });
+  });
+
+  clipboardClearBtn.addEventListener('click', () => {
+    clipboardNewText.value = '';
+    clipboardNewText.focus();
+  });
+
+  clipboardNewText.addEventListener('keydown', (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+      clipboardAddForm.dispatchEvent(new Event('submit'));
+    }
+  });
+
+  // ── End Clipboard 功能 ───────────────────────────────────────
 
   syncBorderPresetActiveState();
   updateBorderButtonLabel();

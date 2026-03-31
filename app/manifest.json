@@ -3,8 +3,11 @@
   "name": "Website Memo & Border Toolbox",
   "version": "1.0.0",
   "description": "為網站加上 memo 與 border 註記，支援 domain/父目錄/單頁作用域。",
-  "permissions": ["storage", "tabs"],
+  "permissions": ["storage", "tabs", "contextMenus", "scripting"],
   "host_permissions": ["<all_urls>"],
+  "background": {
+    "service_worker": "background.js"
+  },
   "icons": {
     "16": "assets/icon/icon_128x128.png",
     "48": "assets/icon/icon_128x128.png",
