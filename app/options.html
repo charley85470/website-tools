@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Website Memo 設定</title>
+  <title>Website Tools 設定</title>
   <link rel="stylesheet" href="options.css" />
 </head>
 <body>
@@ -22,16 +22,18 @@
     <div id="backupStatus" class="backup-status"></div>
 
     <div class="tabs" role="tablist">
-      <button id="tabMemo" class="active" type="button">Memo 設定</button>
+      <button id="tabClipboard" class="active" type="button">Clipboard 設定</button>
+      <button id="tabMemo" type="button">Memo 設定</button>
       <button id="tabBorder" type="button">Border 設定</button>
     </div>
 
-    <div class="domain-picker">
+    <div id="domainPicker" class="domain-picker">
       <label for="domainSelect">網域</label>
       <select id="domainSelect"></select>
     </div>
 
-    <section id="memoList" class="list"></section>
+    <section id="clipboardList" class="list"></section>
+    <section id="memoList" class="list hidden"></section>
     <section id="borderList" class="list hidden"></section>
   </main>
 

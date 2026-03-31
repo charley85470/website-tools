@@ -1,8 +1,11 @@
 (() => {
+  const tabClipboardBtn = document.getElementById('tabClipboard');
   const tabMemoBtn = document.getElementById('tabMemo');
   const tabBorderBtn = document.getElementById('tabBorder');
+  const clipboardList = document.getElementById('clipboardList');
   const memoList = document.getElementById('memoList');
   const borderList = document.getElementById('borderList');
+  const domainPicker = document.getElementById('domainPicker');
   const domainSelect = document.getElementById('domainSelect');
   const exportJsonBtn = document.getElementById('exportJson');
   const importJsonBtn = document.getElementById('importJson');
@@ -11,9 +14,10 @@
   const itemTemplate = document.getElementById('itemTemplate');
 
   const state = {
-    tab: 'memo',
+    tab: 'clipboard',
     selectedDomain: '',
-    entries: []
+    entries: [],
+    clipboardItems: []
   };
 
   const BORDER_PRESET_COLORS = [
@@ -28,7 +32,7 @@
 
   function formatScope(entry) {
     if (entry.scopeType === 'domain') return `domain: ${entry.scopeValue}`;
-    if (entry.scopeType === 'parent') return `父目錄: ${entry.scopeValue}`;
+    if (entry.scopeType === 'parent') return `子目錄: ${entry.scopeValue}`;
     return `單頁: ${entry.scopeValue}`;
   }
 
@@ -133,11 +137,13 @@
   }
 
   async function exportAsJsonBackup() {
+    const clipResult = await chrome.storage.local.get({ clipboard: [] });
     const payload = {
       app: 'website-memo',
-      version: 1,
+      version: 2,
       exportedAt: new Date().toISOString(),
-      entries: state.entries
+      entries: state.entries,
+      clipboard: Array.isArray(clipResult.clipboard) ? clipResult.clipboard : []
     };
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -176,8 +182,22 @@
 
     await setEntries(sanitizedEntries);
     state.entries = sanitizedEntries;
+
+    let clipboardCount = 0;
+    if (Array.isArray(parsed.clipboard)) {
+      const normalized = parsed.clipboard
+        .map((s) => (typeof s === 'string' ? s.trim() : ''))
+        .filter((s) => s.length > 0);
+      await chrome.storage.local.set({ clipboard: normalized });
+      state.clipboardItems = normalized;
+      clipboardCount = normalized.length;
+    }
+
     render();
-    showBackupStatus(`匯入完成：共 ${sanitizedEntries.length} 筆`);
+    const msg = clipboardCount > 0
+      ? `匯入完成：entries ${sanitizedEntries.length} 筆、clipboard ${clipboardCount} 筆`
+      : `匯入完成：共 ${sanitizedEntries.length} 筆`;
+    showBackupStatus(msg);
   }
 
   async function deleteEntry(id) {
@@ -235,7 +255,12 @@
 
   function buildMemoItem(entry) {
     const node = itemTemplate.content.firstElementChild.cloneNode(true);
-    node.querySelector('.meta').textContent = formatScope(entry);
+    const memoMeta = node.querySelector('.meta');
+    const memoSwatch = document.createElement('span');
+    memoSwatch.className = 'item-color-swatch';
+    memoSwatch.style.background = entry.color || '#fff4a3';
+    memoMeta.appendChild(memoSwatch);
+    memoMeta.appendChild(document.createTextNode(formatScope(entry)));
     node.querySelector('.item-content').textContent = entry.text || '';
 
     const form = node.querySelector('.edit-form');
@@ -295,13 +320,26 @@
     node.querySelector('.meta').textContent = formatScope(entry);
 
     const labels = entry.labels || {};
-    node.querySelector('.item-content').textContent = [
-      `color: ${entry.color || '#ef4444'}`,
-      `top: ${labels.top || ''}`,
-      `right: ${labels.right || ''}`,
-      `bottom: ${labels.bottom || ''}`,
-      `left: ${labels.left || ''}`
-    ].join('\n');
+    const contentEl = node.querySelector('.item-content');
+    const colorLine = document.createElement('div');
+    colorLine.className = 'item-content-color-line';
+    const borderSwatch = document.createElement('span');
+    borderSwatch.className = 'item-color-swatch';
+    borderSwatch.style.background = entry.color || '#ef4444';
+    colorLine.appendChild(borderSwatch);
+    colorLine.appendChild(document.createTextNode(`color: ${entry.color || '#ef4444'}`));
+    contentEl.appendChild(colorLine);
+    const labelLines = [
+      labels.top && `top: ${labels.top}`,
+      labels.right && `right: ${labels.right}`,
+      labels.bottom && `bottom: ${labels.bottom}`,
+      labels.left && `left: ${labels.left}`
+    ].filter(Boolean).join('\n');
+    if (labelLines) {
+      const labelDiv = document.createElement('div');
+      labelDiv.textContent = labelLines;
+      contentEl.appendChild(labelDiv);
+    }
 
     const form = node.querySelector('.edit-form');
     form.appendChild(createScopeSummary(entry));
@@ -364,6 +402,53 @@
     return node;
   }
 
+  function buildClipboardItem(text, index) {
+    const node = document.createElement('article');
+    node.className = 'item item-clipboard';
+
+    const head = document.createElement('div');
+    head.className = 'item-head';
+
+    const textMeta = document.createElement('div');
+    textMeta.className = 'clipboard-text-meta';
+    textMeta.textContent = text;
+
+    const actions = document.createElement('div');
+    actions.className = 'actions';
+
+    const delBtn = document.createElement('button');
+    delBtn.type = 'button';
+    delBtn.className = 'btn-delete danger';
+    delBtn.textContent = '刪除';
+    delBtn.addEventListener('click', () => {
+      if (confirm('確定要刪除此剪貼簿項目嗎？')) {
+        const updated = state.clipboardItems.filter((_, i) => i !== index);
+        state.clipboardItems = updated;
+        chrome.storage.local.set({ clipboard: updated }, () => render());
+      }
+    });
+
+    actions.appendChild(delBtn);
+    head.appendChild(textMeta);
+    head.appendChild(actions);
+    node.appendChild(head);
+    return node;
+  }
+
+  function renderClipboardItems() {
+    clipboardList.innerHTML = '';
+    if (!state.clipboardItems || state.clipboardItems.length === 0) {
+      const empty = document.createElement('div');
+      empty.className = 'empty';
+      empty.textContent = '目前沒有剪貼簿項目';
+      clipboardList.appendChild(empty);
+      return;
+    }
+    state.clipboardItems.forEach((text, index) => {
+      clipboardList.appendChild(buildClipboardItem(text, index));
+    });
+  }
+
   function renderList(container, items, builder) {
     container.innerHTML = '';
     if (!items.length) {
@@ -406,6 +491,23 @@
   }
 
   function render() {
+    const isClipboard = state.tab === 'clipboard';
+    const memoActive = state.tab === 'memo';
+
+    tabClipboardBtn.classList.toggle('active', isClipboard);
+    tabMemoBtn.classList.toggle('active', memoActive);
+    tabBorderBtn.classList.toggle('active', state.tab === 'border');
+
+    domainPicker.classList.toggle('hidden', isClipboard);
+    clipboardList.classList.toggle('hidden', !isClipboard);
+    memoList.classList.toggle('hidden', !memoActive);
+    borderList.classList.toggle('hidden', state.tab !== 'border');
+
+    if (isClipboard) {
+      renderClipboardItems();
+      return;
+    }
+
     renderDomainSelect();
 
     const domainEntries = state.selectedDomain
@@ -417,12 +519,6 @@
 
     renderList(memoList, memoItems, buildMemoItem);
     renderList(borderList, borderItems, buildBorderItem);
-
-    const memoActive = state.tab === 'memo';
-    tabMemoBtn.classList.toggle('active', memoActive);
-    tabBorderBtn.classList.toggle('active', !memoActive);
-    memoList.classList.toggle('hidden', !memoActive);
-    borderList.classList.toggle('hidden', memoActive);
   }
 
   async function preselectDomainFromActiveTab() {
@@ -436,9 +532,16 @@
 
   async function initialize() {
     state.entries = await getEntries();
+    const clipResult = await chrome.storage.local.get({ clipboard: [] });
+    state.clipboardItems = Array.isArray(clipResult.clipboard) ? clipResult.clipboard : [];
     await preselectDomainFromActiveTab();
     render();
   }
+
+  tabClipboardBtn.addEventListener('click', () => {
+    state.tab = 'clipboard';
+    render();
+  });
 
   tabMemoBtn.addEventListener('click', () => {
     state.tab = 'memo';
@@ -470,9 +573,15 @@
   });
 
   chrome.storage.onChanged.addListener((changes, areaName) => {
-    if (areaName !== 'local' || !changes.entries) return;
-    state.entries = Array.isArray(changes.entries.newValue) ? changes.entries.newValue : [];
-    render();
+    if (areaName !== 'local') return;
+    if (changes.entries) {
+      state.entries = Array.isArray(changes.entries.newValue) ? changes.entries.newValue : [];
+      render();
+    }
+    if (changes.clipboard) {
+      state.clipboardItems = Array.isArray(changes.clipboard.newValue) ? changes.clipboard.newValue : [];
+      render();
+    }
   });
 
   initialize();

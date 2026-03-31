@@ -154,3 +154,107 @@ button.secondary {
 .hidden {
   display: none;
 }
+
+/* ── Clipboard 面板 ────────────────────────── */
+.clipboard-count-badge {
+  font-size: 11px;
+  color: #6b7280;
+  font-weight: 400;
+  margin-left: 4px;
+}
+#clipboardPanel textarea {
+  width: 100%;
+  resize: vertical;
+  min-height: 44px;
+  font-family: inherit;
+  font-size: 13px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  padding: 6px 8px;
+  margin-bottom: 8px;
+  box-sizing: border-box;
+}
+.clipboard-form-actions {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.clipboard-form-actions .clipboard-btn {
+  flex: 1;
+  width: auto;
+}
+.clipboard-list {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 8px 0;
+  max-height: 220px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.clipboard-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  border: 1px solid #e5e7eb;
+  background: #fafafa;
+}
+.clipboard-item-text {
+  flex: 1;
+  font-size: 14px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: #1f2937;
+  min-width: 0;
+}
+.clipboard-item-actions {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+.clipboard-empty {
+  font-size: 12px;
+  color: #9ca3af;
+  text-align: center;
+  padding: 10px 0;
+  margin: 0 0 8px 0;
+}
+.clipboard-footer-actions {
+  display: flex;
+  gap: 8px;
+}
+.clipboard-btn {
+  border: none;
+  border-radius: 6px;
+  padding: 5px 10px;
+  background: #2563eb;
+  color: #fff;
+  cursor: pointer;
+  font-size: 12px;
+  flex: none;
+  width: auto;
+}
+.clipboard-btn-secondary {
+  background: #f3f4f6;
+  color: #111827;
+}
+.clipboard-btn-danger {
+  background: #dc2626;
+  color: #fff;
+}
+.clipboard-item-actions .clipboard-btn {
+  flex: none;
+  width: auto;
+  padding: 5px 10px;
+  font-size: 13px;
+}
+.panel-site-notice {
+  font-size: 12px;
+  color: #b91c1c;
+  margin-bottom: 8px;
+}

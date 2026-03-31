@@ -3,76 +3,96 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Website Memo</title>
+  <title>Website Tools</title>
   <link rel="stylesheet" href="popup.css" />
 </head>
 <body>
   <main class="container">
-    <h1>網站工具箱</h1>
+    <h1>Website Tools</h1>
     <div id="availabilityNotice" class="availability-notice hidden"></div>
 
     <div id="interactiveArea">
       <div class="mode-switch" role="tablist" aria-label="模式切換">
-        <button id="modeMemo" class="active" type="button">Memo</button>
+        <button id="modeClipboard" class="active" type="button">Clipboard</button>
+        <button id="modeMemo" type="button">Memo</button>
         <button id="modeBorder" type="button">Border</button>
       </div>
 
       <div id="popupStatus" class="status"></div>
-      <section class="card">
+      <section id="scopeCard" class="card hidden">
         <div class="section-title">作用域</div>
         <div id="scopeTypeTabs" class="scope-tabs" role="tablist" aria-label="作用域切換">
           <button type="button" class="active" data-scope="domain">domain</button>
-          <button type="button" data-scope="parent">父目錄</button>
+          <button type="button" data-scope="parent">子目錄</button>
           <button type="button" data-scope="page">單頁</button>
         </div>
         <div id="parentScopeGroup" class="parent-scope-group hidden">
-          <label for="parentScopeInput">父目錄作用域（可編輯）</label>
+          <label for="parentScopeInput">子目錄作用域（可編輯）</label>
           <input id="parentScopeInput" type="text" />
         </div>
         <div id="scopePreview" class="hint"></div>
       </section>
 
-      <section id="memoPanel" class="card">
-        <div class="section-title">Memo 設定</div>
-        <label>內容</label>
-        <textarea id="memoText" rows="4" placeholder="輸入 memo 內容"></textarea>
-        <label>顏色</label>
-        <input id="memoColor" type="color" value="#fff4a3" />
-        <button id="addMemo" type="button">新增 Memo</button>
+      <section id="memoPanel" class="card hidden">
+        <div id="memoSiteNotice" class="panel-site-notice hidden">請在一般網站頁面使用此擴充功能</div>
+        <div id="memoFormContent">
+          <div class="section-title">Memo 設定</div>
+          <label>內容</label>
+          <textarea id="memoText" rows="4" placeholder="輸入 memo 內容"></textarea>
+          <label>顏色</label>
+          <input id="memoColor" type="color" value="#fff4a3" />
+          <button id="addMemo" type="button">新增 Memo</button>
+        </div>
+      </section>
+
+      <section id="clipboardPanel" class="card">
+        <div class="section-title">剪貼簿 <span id="clipboardCount" class="clipboard-count-badge">0</span></div>
+        <form id="clipboardAddForm" autocomplete="off">
+          <textarea id="clipboardNewText" placeholder="輸入要新增的片段（Ctrl+Enter 送出）" rows="2"></textarea>
+          <div class="clipboard-form-actions">
+            <button id="clipboardAddBtn" class="clipboard-btn" type="submit">新增</button>
+            <button id="clipboardClearBtn" class="clipboard-btn clipboard-btn-secondary" type="button">清除</button>
+          </div>
+        </form>
+        <ul id="clipboardList" class="clipboard-list"></ul>
+        <p id="clipboardEmptyMsg" class="clipboard-empty">目前沒有儲存的片段</p>
       </section>
 
       <section id="borderPanel" class="card hidden">
-        <div class="section-title">Border 設定</div>
-        <label>邊框顏色</label>
-        <input id="borderColor" type="color" value="#ef4444" />
-        <div id="borderColorPresets" class="color-presets" aria-label="快速顏色">
-          <button type="button" class="color-swatch" data-color="#ef4444" style="--swatch-color:#ef4444" title="紅"></button>
-          <button type="button" class="color-swatch" data-color="#f97316" style="--swatch-color:#f97316" title="橙"></button>
-          <button type="button" class="color-swatch" data-color="#eab308" style="--swatch-color:#eab308" title="黃"></button>
-          <button type="button" class="color-swatch" data-color="#22c55e" style="--swatch-color:#22c55e" title="綠"></button>
-          <button type="button" class="color-swatch" data-color="#3b82f6" style="--swatch-color:#3b82f6" title="藍"></button>
-          <button type="button" class="color-swatch" data-color="#4f46e5" style="--swatch-color:#4f46e5" title="靛"></button>
-          <button type="button" class="color-swatch" data-color="#a855f7" style="--swatch-color:#a855f7" title="紫"></button>
+        <div id="borderSiteNotice" class="panel-site-notice hidden">請在一般網站頁面使用此擴充功能</div>
+        <div id="borderFormContent">
+          <div class="section-title">Border 設定</div>
+          <label>邊框顏色</label>
+          <input id="borderColor" type="color" value="#ef4444" />
+          <div id="borderColorPresets" class="color-presets" aria-label="快速顏色">
+            <button type="button" class="color-swatch" data-color="#ef4444" style="--swatch-color:#ef4444" title="紅"></button>
+            <button type="button" class="color-swatch" data-color="#f97316" style="--swatch-color:#f97316" title="橙"></button>
+            <button type="button" class="color-swatch" data-color="#eab308" style="--swatch-color:#eab308" title="黃"></button>
+            <button type="button" class="color-swatch" data-color="#22c55e" style="--swatch-color:#22c55e" title="綠"></button>
+            <button type="button" class="color-swatch" data-color="#3b82f6" style="--swatch-color:#3b82f6" title="藍"></button>
+            <button type="button" class="color-swatch" data-color="#4f46e5" style="--swatch-color:#4f46e5" title="靛"></button>
+            <button type="button" class="color-swatch" data-color="#a855f7" style="--swatch-color:#a855f7" title="紫"></button>
+          </div>
+          <label>上方文字</label>
+          <input id="labelTop" type="text" placeholder="上方說明（可空白）" />
+          <label>右方文字</label>
+          <input id="labelRight" type="text" placeholder="右方說明（可空白）" />
+          <label>下方文字</label>
+          <input id="labelBottom" type="text" placeholder="下方說明（可空白）" />
+          <label>左方文字</label>
+          <input id="labelLeft" type="text" placeholder="左方說明（可空白）" />
+          <label>邊框寬度（px）</label>
+          <input id="borderWidth" type="number" value="4" min="1" max="20" />
+          <label class="checkbox-label">
+            <input id="borderVisible" type="checkbox" checked />
+            顯示邊框
+          </label>
+          <label class="checkbox-label">
+            <input id="cursorBannerVisible" type="checkbox" checked />
+            顯示滑鼠旁 banner
+          </label>
+          <button id="addBorder" type="button">新增 Border</button>
         </div>
-        <label>上方文字</label>
-        <input id="labelTop" type="text" placeholder="上方說明（可空白）" />
-        <label>右方文字</label>
-        <input id="labelRight" type="text" placeholder="右方說明（可空白）" />
-        <label>下方文字</label>
-        <input id="labelBottom" type="text" placeholder="下方說明（可空白）" />
-        <label>左方文字</label>
-        <input id="labelLeft" type="text" placeholder="左方說明（可空白）" />
-        <label>邊框寬度（px）</label>
-        <input id="borderWidth" type="number" value="4" min="1" max="20" />
-        <label class="checkbox-label">
-          <input id="borderVisible" type="checkbox" checked />
-          顯示邊框
-        </label>
-        <label class="checkbox-label">
-          <input id="cursorBannerVisible" type="checkbox" checked />
-          顯示滑鼠旁 banner
-        </label>
-        <button id="addBorder" type="button">新增 Border</button>
       </section>
     </div>
 
