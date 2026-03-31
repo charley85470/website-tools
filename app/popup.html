@@ -3,12 +3,12 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Website Memo</title>
+  <title>Website Tools</title>
   <link rel="stylesheet" href="popup.css" />
 </head>
 <body>
   <main class="container">
-    <h1>網站工具箱</h1>
+    <h1>Website Tools</h1>
     <div id="availabilityNotice" class="availability-notice hidden"></div>
 
     <div id="interactiveArea">
@@ -23,11 +23,11 @@
         <div class="section-title">作用域</div>
         <div id="scopeTypeTabs" class="scope-tabs" role="tablist" aria-label="作用域切換">
           <button type="button" class="active" data-scope="domain">domain</button>
-          <button type="button" data-scope="parent">父目錄</button>
+          <button type="button" data-scope="parent">子目錄</button>
           <button type="button" data-scope="page">單頁</button>
         </div>
         <div id="parentScopeGroup" class="parent-scope-group hidden">
-          <label for="parentScopeInput">父目錄作用域（可編輯）</label>
+          <label for="parentScopeInput">子目錄作用域（可編輯）</label>
           <input id="parentScopeInput" type="text" />
         </div>
         <div id="scopePreview" class="hint"></div>

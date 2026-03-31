@@ -179,6 +179,10 @@ button.secondary {
   gap: 8px;
   margin-bottom: 8px;
 }
+.clipboard-form-actions .clipboard-btn {
+  flex: 1;
+  width: auto;
+}
 .clipboard-list {
   list-style: none;
   padding: 0;

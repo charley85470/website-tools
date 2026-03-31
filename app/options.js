@@ -32,7 +32,7 @@
 
   function formatScope(entry) {
     if (entry.scopeType === 'domain') return `domain: ${entry.scopeValue}`;
-    if (entry.scopeType === 'parent') return `父目錄: ${entry.scopeValue}`;
+    if (entry.scopeType === 'parent') return `子目錄: ${entry.scopeValue}`;
     return `單頁: ${entry.scopeValue}`;
   }
 

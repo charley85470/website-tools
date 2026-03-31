@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Website Memo & Border Toolbox",
+  "name": "Website Tools",
   "version": "1.0.0",
-  "description": "為網站加上 memo 與 border 註記，支援 domain/父目錄/單頁作用域。",
+  "description": "管理網站 Memo、Border 標記與文字剪貼簿，支援 domain/子目錄/單頁作用域，全域剪貼簿可跏頁使用。",
   "permissions": ["storage", "tabs", "contextMenus", "scripting"],
   "host_permissions": ["<all_urls>"],
   "background": {
@@ -14,7 +14,7 @@
     "128": "assets/icon/icon_128x128.png"
   },
   "action": {
-    "default_title": "Website Memo",
+    "default_title": "Website Tools",
     "default_popup": "popup.html",
     "default_icon": {
       "16": "assets/icon/icon_128x128.png",
