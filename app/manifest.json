@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Website Tools",
   "version": "1.0.0",
-  "description": "管理網站 Memo、Border 標記與文字剪貼簿，支援 domain/子目錄/單頁作用域，全域剪貼簿可跏頁使用。",
+  "description": "為網站加上便籤、標記，以及剪貼簿功能，提升使用者的瀏覽體驗。",
   "permissions": ["storage", "tabs", "contextMenus", "scripting"],
   "host_permissions": ["<all_urls>"],
   "background": {
