@@ -452,6 +452,7 @@
     delBtn.type = 'button';
     delBtn.onclick = () => {
       const updated = _clipItems.filter((i) => i.id !== item.id);
+      _clipItems = updated;
       chrome.storage.local.set({ clipboard: updated });
     };
 
