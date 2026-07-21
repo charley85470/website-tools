@@ -183,3 +183,68 @@ button.danger { background: #dc2626; }
   font-size: 12px;
   color: #047857;
 }
+
+/* ── Category Manager ──────────────────────────────────── */
+#clipboardCategoryMgr {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 14px;
+  margin-bottom: 12px;
+}
+.category-mgr-title {
+  font-weight: 700;
+  font-size: 15px;
+  margin-bottom: 10px;
+  color: #111827;
+}
+.add-category-form {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.add-category-form .category-name-input {
+  flex: 1;
+}
+.category-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.category-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+}
+.category-name {
+  flex: 1;
+  font-size: 14px;
+}
+.category-rename-input {
+  flex: 1;
+}
+.btn-sm {
+  padding: 4px 10px;
+  font-size: 13px;
+  border-radius: 5px;
+  background: #4b5563;
+  color: #fff;
+  border: none;
+  cursor: pointer;
+}
+.btn-sm.danger {
+  background: #dc2626;
+}
+.clipboard-cat-select {
+  font-size: 13px;
+  padding: 4px 8px;
+  border-radius: 5px;
+  border: 1px solid #d1d5db;
+  background: #f9fafb;
+  cursor: pointer;
+  color: #111827;
+}

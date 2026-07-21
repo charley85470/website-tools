@@ -28,11 +28,13 @@ chrome.contextMenus.onClicked.addListener((info) => {
 
   chrome.storage.local.get({ clipboard: [] }, (data) => {
     const items = data.clipboard || [];
-    if (items.includes(text)) {
+    const textExists = items.some((item) => (typeof item === 'string' ? item : item.text) === text);
+    if (textExists) {
       setTemporaryBadge('✓');
       return;
     }
-    const updated = [text, ...items];
+    const newItem = { id: crypto.randomUUID(), text, categoryId: null };
+    const updated = [newItem, ...items];
     chrome.storage.local.set({ clipboard: updated }, () => {
       setTemporaryBadge('+');
     });

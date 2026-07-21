@@ -375,95 +375,159 @@
   const clipboardAddForm = document.getElementById('clipboardAddForm');
   const clipboardClearBtn = document.getElementById('clipboardClearBtn');
 
-  function renderClipboardList(items) {
+  // Module-level clipboard state
+  let _clipItems = [];   // ClipboardItem[]
+  let _clipCats = [];    // ClipboardCategory[]
+
+  function normalizeClipboardItem(raw) {
+    if (typeof raw === 'string') {
+      return { id: crypto.randomUUID(), text: raw, categoryId: null };
+    }
+    return {
+      id: typeof raw.id === 'string' && raw.id ? raw.id : crypto.randomUUID(),
+      text: typeof raw.text === 'string' ? raw.text : '',
+      categoryId: typeof raw.categoryId === 'string' ? raw.categoryId : null
+    };
+  }
+
+  function buildClipboardItemEl(item) {
+    const li = document.createElement('li');
+    li.className = 'clipboard-item';
+    li.title = item.text;
+
+    const span = document.createElement('span');
+    span.className = 'clipboard-item-text';
+    span.textContent = item.text;
+    span.title = item.text;
+
+    const actions = document.createElement('div');
+    actions.className = 'clipboard-item-actions';
+
+    const insertBtn = document.createElement('button');
+    insertBtn.className = 'clipboard-btn';
+    insertBtn.textContent = '插入';
+    insertBtn.title = '插入至目前聚焦的輸入框';
+    insertBtn.type = 'button';
+    insertBtn.onclick = () => {
+      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+        if (!tabs || !tabs[0] || !tabs[0].id) return;
+        chrome.scripting.executeScript({
+          target: { tabId: tabs[0].id },
+          func: (txt) => {
+            try {
+              const active = document.activeElement;
+              if (active && (active.tagName === 'TEXTAREA' || (active.tagName === 'INPUT' && active.type !== 'file'))) {
+                const s = typeof active.selectionStart === 'number' ? active.selectionStart : active.value.length;
+                const e = typeof active.selectionEnd === 'number' ? active.selectionEnd : s;
+                active.value = active.value.slice(0, s) + txt + active.value.slice(e);
+                active.selectionStart = active.selectionEnd = s + txt.length;
+                active.focus();
+                return true;
+              }
+              if (active && active.isContentEditable) {
+                const sel = window.getSelection();
+                if (!sel || sel.rangeCount === 0) return false;
+                const range = sel.getRangeAt(0);
+                range.deleteContents();
+                const node = document.createTextNode(txt);
+                range.insertNode(node);
+                range.setStartAfter(node);
+                range.setEndAfter(node);
+                sel.removeAllRanges();
+                sel.addRange(range);
+                return true;
+              }
+              return false;
+            } catch (_) { return false; }
+          },
+          args: [item.text]
+        });
+      });
+    };
+
+    const delBtn = document.createElement('button');
+    delBtn.className = 'clipboard-btn clipboard-btn-danger';
+    delBtn.textContent = '刪除';
+    delBtn.title = '刪除此片段';
+    delBtn.type = 'button';
+    delBtn.onclick = () => {
+      const updated = _clipItems.filter((i) => i.id !== item.id);
+      chrome.storage.local.set({ clipboard: updated });
+    };
+
+    actions.appendChild(insertBtn);
+    actions.appendChild(delBtn);
+    li.appendChild(span);
+    li.appendChild(actions);
+    return li;
+  }
+
+  function renderClipboardList() {
     clipboardListEl.innerHTML = '';
-    clipboardCountEl.textContent = (items || []).length;
-    if (!items || items.length === 0) {
+    clipboardCountEl.textContent = _clipItems.length;
+
+    if (_clipItems.length === 0) {
       clipboardEmptyMsg.classList.remove('hidden');
       return;
     }
     clipboardEmptyMsg.classList.add('hidden');
 
-    items.forEach((text, index) => {
-      const li = document.createElement('li');
-      li.className = 'clipboard-item';
-      li.title = text;
+    // No categories defined: flat list (backward compatible)
+    if (_clipCats.length === 0) {
+      _clipItems.forEach((item) => clipboardListEl.appendChild(buildClipboardItemEl(item)));
+      return;
+    }
 
-      const span = document.createElement('span');
-      span.className = 'clipboard-item-text';
-      span.textContent = text;
-      span.title = text;
+    // Group items by category
+    const grouped = new Map();
+    _clipCats.forEach((cat) => grouped.set(cat.id, []));
+    grouped.set(null, []); // uncategorized bucket
 
-      const actions = document.createElement('div');
-      actions.className = 'clipboard-item-actions';
-
-      const insertBtn = document.createElement('button');
-      insertBtn.className = 'clipboard-btn';
-      insertBtn.textContent = '插入';
-      insertBtn.title = '插入至目前聚焦的輸入框';
-      insertBtn.type = 'button';
-      insertBtn.onclick = () => {
-        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-          if (!tabs || !tabs[0] || !tabs[0].id) return;
-          chrome.scripting.executeScript({
-            target: { tabId: tabs[0].id },
-            func: (txt) => {
-              try {
-                const active = document.activeElement;
-                if (active && (active.tagName === 'TEXTAREA' || (active.tagName === 'INPUT' && active.type !== 'file'))) {
-                  const s = typeof active.selectionStart === 'number' ? active.selectionStart : active.value.length;
-                  const e = typeof active.selectionEnd === 'number' ? active.selectionEnd : s;
-                  active.value = active.value.slice(0, s) + txt + active.value.slice(e);
-                  active.selectionStart = active.selectionEnd = s + txt.length;
-                  active.focus();
-                  return true;
-                }
-                if (active && active.isContentEditable) {
-                  const sel = window.getSelection();
-                  if (!sel || sel.rangeCount === 0) return false;
-                  const range = sel.getRangeAt(0);
-                  range.deleteContents();
-                  const node = document.createTextNode(txt);
-                  range.insertNode(node);
-                  range.setStartAfter(node);
-                  range.setEndAfter(node);
-                  sel.removeAllRanges();
-                  sel.addRange(range);
-                  return true;
-                }
-                return false;
-              } catch (_) { return false; }
-            },
-            args: [text]
-          });
-        });
-      };
-
-      const delBtn = document.createElement('button');
-      delBtn.className = 'clipboard-btn clipboard-btn-danger';
-      delBtn.textContent = '刪除';
-      delBtn.title = '刪除此片段';
-      delBtn.type = 'button';
-      delBtn.onclick = () => {
-        const updated = items.filter((_, i) => i !== index);
-        chrome.storage.local.set({ clipboard: updated }, () => renderClipboardList(updated));
-      };
-
-      actions.appendChild(insertBtn);
-      actions.appendChild(delBtn);
-      li.appendChild(span);
-      li.appendChild(actions);
-      clipboardListEl.appendChild(li);
+    _clipItems.forEach((item) => {
+      const catId = grouped.has(item.categoryId) ? item.categoryId : null;
+      grouped.get(catId).push(item);
     });
+
+    // Render named categories first
+    _clipCats.forEach((cat) => {
+      const catItems = grouped.get(cat.id);
+      if (!catItems || catItems.length === 0) return;
+      const header = document.createElement('li');
+      header.className = 'clipboard-category-header';
+      header.textContent = cat.name;
+      clipboardListEl.appendChild(header);
+      catItems.forEach((item) => clipboardListEl.appendChild(buildClipboardItemEl(item)));
+    });
+
+    // Render uncategorized group last
+    const uncatItems = grouped.get(null);
+    if (uncatItems && uncatItems.length > 0) {
+      const header = document.createElement('li');
+      header.className = 'clipboard-category-header';
+      header.textContent = '未分類';
+      clipboardListEl.appendChild(header);
+      uncatItems.forEach((item) => clipboardListEl.appendChild(buildClipboardItemEl(item)));
+    }
   }
 
   // 初始載入片段
-  chrome.storage.local.get({ clipboard: [] }, (data) => renderClipboardList(data.clipboard));
+  chrome.storage.local.get({ clipboard: [], clipboardCategories: [] }, (data) => {
+    _clipItems = (data.clipboard || []).map(normalizeClipboardItem);
+    _clipCats = data.clipboardCategories || [];
+    renderClipboardList();
+  });
 
   // 即時同步其他視窗的變更（例如右鍵選單新增）
   chrome.storage.onChanged.addListener((changes, area) => {
-    if (area === 'local' && changes.clipboard) {
-      renderClipboardList(changes.clipboard.newValue || []);
+    if (area !== 'local') return;
+    if (changes.clipboard) {
+      _clipItems = (changes.clipboard.newValue || []).map(normalizeClipboardItem);
+    }
+    if (changes.clipboardCategories) {
+      _clipCats = changes.clipboardCategories.newValue || [];
+    }
+    if (changes.clipboard || changes.clipboardCategories) {
+      renderClipboardList();
     }
   });
 
@@ -471,13 +535,11 @@
     e.preventDefault();
     const value = clipboardNewText.value.trim();
     if (!value) { clipboardNewText.focus(); return; }
-    chrome.storage.local.get({ clipboard: [] }, (data) => {
-      const updated = [value, ...(data.clipboard || [])];
-      chrome.storage.local.set({ clipboard: updated }, () => {
-        renderClipboardList(updated);
-        clipboardNewText.value = '';
-        clipboardNewText.focus();
-      });
+    const newItem = { id: crypto.randomUUID(), text: value, categoryId: null };
+    const updated = [newItem, ..._clipItems];
+    chrome.storage.local.set({ clipboard: updated }, () => {
+      clipboardNewText.value = '';
+      clipboardNewText.focus();
     });
   });
 

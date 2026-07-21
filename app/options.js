@@ -17,7 +17,8 @@
     tab: 'clipboard',
     selectedDomain: '',
     entries: [],
-    clipboardItems: []
+    clipboardItems: [],
+    clipboardCategories: []
   };
 
   const BORDER_PRESET_COLORS = [
@@ -29,6 +30,52 @@
     '#4f46e5',
     '#a855f7'
   ];
+
+  function normalizeClipboardItem(raw) {
+    if (typeof raw === 'string') {
+      return { id: crypto.randomUUID(), text: raw, categoryId: null };
+    }
+    return {
+      id: typeof raw.id === 'string' && raw.id ? raw.id : crypto.randomUUID(),
+      text: typeof raw.text === 'string' ? raw.text : '',
+      categoryId: typeof raw.categoryId === 'string' ? raw.categoryId : null
+    };
+  }
+
+  async function setCategories(categories) {
+    state.clipboardCategories = categories;
+    await chrome.storage.local.set({ clipboardCategories: categories });
+  }
+
+  async function addCategory(name) {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    await setCategories([...state.clipboardCategories, { id: crypto.randomUUID(), name: trimmed }]);
+    render();
+  }
+
+  async function renameCategory(id, name) {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    await setCategories(state.clipboardCategories.map((cat) => (cat.id === id ? { ...cat, name: trimmed } : cat)));
+    render();
+  }
+
+  async function deleteCategory(id) {
+    const cats = state.clipboardCategories.filter((cat) => cat.id !== id);
+    const items = state.clipboardItems.map((item) => (item.categoryId === id ? { ...item, categoryId: null } : item));
+    state.clipboardItems = items;
+    state.clipboardCategories = cats;
+    await chrome.storage.local.set({ clipboard: items, clipboardCategories: cats });
+    render();
+  }
+
+  async function updateItemCategory(itemId, categoryId) {
+    const items = state.clipboardItems.map((item) => (item.id === itemId ? { ...item, categoryId: categoryId || null } : item));
+    state.clipboardItems = items;
+    await chrome.storage.local.set({ clipboard: items });
+    render();
+  }
 
   function formatScope(entry) {
     if (entry.scopeType === 'domain') return `domain: ${entry.scopeValue}`;
@@ -137,13 +184,14 @@
   }
 
   async function exportAsJsonBackup() {
-    const clipResult = await chrome.storage.local.get({ clipboard: [] });
+    const clipResult = await chrome.storage.local.get({ clipboard: [], clipboardCategories: [] });
     const payload = {
       app: 'website-memo',
       version: 2,
       exportedAt: new Date().toISOString(),
       entries: state.entries,
-      clipboard: Array.isArray(clipResult.clipboard) ? clipResult.clipboard : []
+      clipboard: Array.isArray(clipResult.clipboard) ? clipResult.clipboard : [],
+      clipboardCategories: Array.isArray(clipResult.clipboardCategories) ? clipResult.clipboardCategories : []
     };
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -186,10 +234,14 @@
     let clipboardCount = 0;
     if (Array.isArray(parsed.clipboard)) {
       const normalized = parsed.clipboard
-        .map((s) => (typeof s === 'string' ? s.trim() : ''))
-        .filter((s) => s.length > 0);
-      await chrome.storage.local.set({ clipboard: normalized });
+        .map((item) => normalizeClipboardItem(item))
+        .filter((item) => item.text.length > 0);
+      const cats = Array.isArray(parsed.clipboardCategories)
+        ? parsed.clipboardCategories.filter((c) => c && typeof c.id === 'string' && typeof c.name === 'string')
+        : [];
+      await chrome.storage.local.set({ clipboard: normalized, clipboardCategories: cats });
       state.clipboardItems = normalized;
+      state.clipboardCategories = cats;
       clipboardCount = normalized.length;
     }
 
@@ -402,7 +454,7 @@
     return node;
   }
 
-  function buildClipboardItem(text, index) {
+  function buildClipboardItem(item) {
     const node = document.createElement('article');
     node.className = 'item item-clipboard';
 
@@ -411,10 +463,30 @@
 
     const textMeta = document.createElement('div');
     textMeta.className = 'clipboard-text-meta';
-    textMeta.textContent = text;
+    textMeta.textContent = item.text;
 
     const actions = document.createElement('div');
     actions.className = 'actions';
+
+    if (state.clipboardCategories.length > 0) {
+      const catSelect = document.createElement('select');
+      catSelect.className = 'clipboard-cat-select';
+      const noneOpt = document.createElement('option');
+      noneOpt.value = '';
+      noneOpt.textContent = '未分類';
+      catSelect.appendChild(noneOpt);
+      state.clipboardCategories.forEach((cat) => {
+        const opt = document.createElement('option');
+        opt.value = cat.id;
+        opt.textContent = cat.name;
+        catSelect.appendChild(opt);
+      });
+      catSelect.value = item.categoryId || '';
+      catSelect.addEventListener('change', () => {
+        updateItemCategory(item.id, catSelect.value || null).catch(console.error);
+      });
+      actions.appendChild(catSelect);
+    }
 
     const delBtn = document.createElement('button');
     delBtn.type = 'button';
@@ -422,7 +494,7 @@
     delBtn.textContent = '刪除';
     delBtn.addEventListener('click', () => {
       if (confirm('確定要刪除此剪貼簿項目嗎？')) {
-        const updated = state.clipboardItems.filter((_, i) => i !== index);
+        const updated = state.clipboardItems.filter((i) => i.id !== item.id);
         state.clipboardItems = updated;
         chrome.storage.local.set({ clipboard: updated }, () => render());
       }
@@ -435,6 +507,99 @@
     return node;
   }
 
+  function renderCategoryManager() {
+    const section = document.getElementById('clipboardCategoryMgr');
+    if (!section) return;
+    section.innerHTML = '';
+
+    const title = document.createElement('div');
+    title.className = 'category-mgr-title';
+    title.textContent = '分類管理';
+    section.appendChild(title);
+
+    const addForm = document.createElement('form');
+    addForm.className = 'add-category-form';
+    const nameInput = document.createElement('input');
+    nameInput.type = 'text';
+    nameInput.placeholder = '新分類名稱';
+    nameInput.className = 'category-name-input';
+    const addBtn = document.createElement('button');
+    addBtn.type = 'submit';
+    addBtn.textContent = '新增分類';
+    addForm.appendChild(nameInput);
+    addForm.appendChild(addBtn);
+    addForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      if (!nameInput.value.trim()) return;
+      addCategory(nameInput.value).then(() => { nameInput.value = ''; }).catch(console.error);
+    });
+    section.appendChild(addForm);
+
+    if (state.clipboardCategories.length > 0) {
+      const catList = document.createElement('div');
+      catList.className = 'category-list';
+
+      state.clipboardCategories.forEach((cat) => {
+        const row = document.createElement('div');
+        row.className = 'category-row';
+
+        const nameSpan = document.createElement('span');
+        nameSpan.className = 'category-name';
+        nameSpan.textContent = cat.name;
+
+        const renameInput = document.createElement('input');
+        renameInput.type = 'text';
+        renameInput.value = cat.name;
+        renameInput.className = 'category-rename-input hidden';
+
+        const renameBtn = document.createElement('button');
+        renameBtn.type = 'button';
+        renameBtn.className = 'btn-sm';
+        renameBtn.textContent = '重新命名';
+        renameBtn.addEventListener('click', () => {
+          const isEditing = !renameInput.classList.contains('hidden');
+          if (isEditing) {
+            renameCategory(cat.id, renameInput.value).catch(console.error);
+          } else {
+            nameSpan.classList.add('hidden');
+            renameInput.classList.remove('hidden');
+            renameInput.focus();
+            renameInput.select();
+            renameBtn.textContent = '確認';
+          }
+        });
+
+        renameInput.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') { renameBtn.click(); }
+          if (e.key === 'Escape') {
+            renameInput.value = cat.name;
+            renameInput.classList.add('hidden');
+            nameSpan.classList.remove('hidden');
+            renameBtn.textContent = '重新命名';
+          }
+        });
+
+        const delBtn = document.createElement('button');
+        delBtn.type = 'button';
+        delBtn.className = 'btn-sm danger';
+        delBtn.textContent = '刪除';
+        delBtn.addEventListener('click', () => {
+          if (confirm(`確定要刪除分類「${cat.name}」嗎？屬於此分類的項目將變為未分類。`)) {
+            deleteCategory(cat.id).catch(console.error);
+          }
+        });
+
+        row.appendChild(nameSpan);
+        row.appendChild(renameInput);
+        row.appendChild(renameBtn);
+        row.appendChild(delBtn);
+        catList.appendChild(row);
+      });
+
+      section.appendChild(catList);
+    }
+  }
+
   function renderClipboardItems() {
     clipboardList.innerHTML = '';
     if (!state.clipboardItems || state.clipboardItems.length === 0) {
@@ -444,8 +609,8 @@
       clipboardList.appendChild(empty);
       return;
     }
-    state.clipboardItems.forEach((text, index) => {
-      clipboardList.appendChild(buildClipboardItem(text, index));
+    state.clipboardItems.forEach((item) => {
+      clipboardList.appendChild(buildClipboardItem(item));
     });
   }
 
@@ -503,7 +668,11 @@
     memoList.classList.toggle('hidden', !memoActive);
     borderList.classList.toggle('hidden', state.tab !== 'border');
 
+    const catMgr = document.getElementById('clipboardCategoryMgr');
+    if (catMgr) catMgr.classList.toggle('hidden', !isClipboard);
+
     if (isClipboard) {
+      renderCategoryManager();
       renderClipboardItems();
       return;
     }
@@ -532,8 +701,9 @@
 
   async function initialize() {
     state.entries = await getEntries();
-    const clipResult = await chrome.storage.local.get({ clipboard: [] });
-    state.clipboardItems = Array.isArray(clipResult.clipboard) ? clipResult.clipboard : [];
+    const clipResult = await chrome.storage.local.get({ clipboard: [], clipboardCategories: [] });
+    state.clipboardItems = (Array.isArray(clipResult.clipboard) ? clipResult.clipboard : []).map(normalizeClipboardItem);
+    state.clipboardCategories = Array.isArray(clipResult.clipboardCategories) ? clipResult.clipboardCategories : [];
     await preselectDomainFromActiveTab();
     render();
   }
@@ -576,10 +746,14 @@
     if (areaName !== 'local') return;
     if (changes.entries) {
       state.entries = Array.isArray(changes.entries.newValue) ? changes.entries.newValue : [];
-      render();
     }
     if (changes.clipboard) {
-      state.clipboardItems = Array.isArray(changes.clipboard.newValue) ? changes.clipboard.newValue : [];
+      state.clipboardItems = (Array.isArray(changes.clipboard.newValue) ? changes.clipboard.newValue : []).map(normalizeClipboardItem);
+    }
+    if (changes.clipboardCategories) {
+      state.clipboardCategories = Array.isArray(changes.clipboardCategories.newValue) ? changes.clipboardCategories.newValue : [];
+    }
+    if (changes.entries || changes.clipboard || changes.clipboardCategories) {
       render();
     }
   });
